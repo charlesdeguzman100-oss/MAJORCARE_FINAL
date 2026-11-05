@@ -1,0 +1,265 @@
+/* File: assets/css/style.css
+   Shared styles for every page. Mobile-first so the layout works on phones. */
+
+:root {
+  --primary: #0f6e6e;
+  --primary-dark: #0a4f4f;
+  --danger: #b3261e;
+  --text: #1f2933;
+  --muted: #5f6b7a;
+  --background: #f4f7f8;
+  --card: #ffffff;
+  --border: #d7dee3;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text);
+  background: var(--background);
+  line-height: 1.5;
+}
+
+.container {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.site-header {
+  background: var(--primary);
+  color: #fff;
+}
+
+.header-inner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  gap: 8px;
+}
+
+.brand {
+  color: #fff;
+  font-weight: bold;
+  font-size: 1.2rem;
+  text-decoration: none;
+}
+
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
+nav a,
+.link-button {
+  color: #fff;
+  text-decoration: none;
+  background: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.inline-form { margin: 0; }
+
+main { padding: 24px 0; min-height: 70vh; }
+
+h1 { font-size: 1.6rem; margin-top: 0; }
+h2 { font-size: 1.25rem; margin-top: 0; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.narrow { max-width: 480px; margin: 0 auto; }
+
+label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 14px;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px;
+  font: inherit;
+  font-weight: normal;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.btn {
+  display: inline-block;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 18px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.btn:hover { background: var(--primary-dark); }
+
+.btn-danger { background: var(--danger); }
+
+.button-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.alert {
+  padding: 12px 14px;
+  border-radius: 6px;
+  margin-bottom: 14px;
+}
+
+.alert-success { background: #e6f4ea; border: 1px solid #a8d5b5; }
+.alert-error   { background: #fdecea; border: 1px solid #f1b0ab; }
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.stat-number {
+  font-size: 2.2rem;
+  font-weight: bold;
+  color: var(--primary);
+}
+
+.site-footer {
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 14px 0;
+}
+
+/* Tables (staff student list) */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+th, td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+th { color: var(--muted); font-weight: bold; }
+
+.checkbox-label {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-weight: normal;
+}
+
+.checkbox-label input { margin-top: 4px; }
+
+.muted { color: var(--muted); font-size: 0.95rem; }
+select {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px;
+  font: inherit;
+  font-weight: normal;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* Appointments and status badges */
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  background: #e8eef1;
+  color: var(--text);
+}
+.badge-pending, .badge-reserved { background: #fff4d6; }
+.badge-approved, .badge-open { background: #e6f4ea; }
+.badge-rejected, .badge-cancelled { background: #fdecea; }
+.badge-completed, .badge-closed { background: #e8eef1; }
+
+.row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.row-head h2 small { color: var(--muted); font-weight: normal; }
+
+.filter {
+  display: inline-block;
+  margin: 0 8px 8px 0;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--text);
+  text-decoration: none;
+  background: #fff;
+}
+.filter-active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+td .btn, .button-row .btn { margin-right: 6px; margin-bottom: 6px; }
+
+fieldset {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  margin: 0 0 14px;
+}
+legend { font-weight: bold; padding: 0 6px; }
+.radio-label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-weight: normal;
+  margin-bottom: 8px;
+}
+.radio-label input { width: auto; margin: 0; }
+
+/* Slot capacity */
+.badge-full { background: #fde7c8; }
+.small-input {
+  width: 80px;
+  display: inline-block;
+  padding: 6px;
+  margin: 6px 6px 0 0;
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* Documents */
+input[type="file"] {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  font: inherit;
+}

@@ -88,6 +88,7 @@ require_once __DIR__ . '/../templates/header.php';
               <a href="<?= e(url('staff/student_profile.php?id=' . $row['id'])) ?>">View profile</a><br><br>
               <a href="<?= e(url('staff/student_health.php?id=' . $row['id'])) ?>">Health records</a><br><br>
               <a href="<?= e(url('staff/student_visits.php?id=' . $row['id'])) ?>">Visits</a><br><br>
+              <a href="<?= e(url('staff/student_assessments.php?id=' . $row['id'])) ?>">Check-ups</a><br><br>
               <form method="post" action=""
                     onsubmit="return confirm('Reset this student\'s password to a temporary one?');">
                 <?= csrf_field() ?>

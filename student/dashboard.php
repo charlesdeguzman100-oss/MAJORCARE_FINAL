@@ -5,6 +5,7 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/appointments.php';
 require_once __DIR__ . '/../includes/visits.php';
+require_once __DIR__ . '/../includes/messages.php';
 
 $user = require_role('student');
 $pdo = getDatabase();
@@ -62,6 +63,19 @@ require_once __DIR__ . '/../templates/header.php';
 <h1>Welcome, <?= e($user['full_name']) ?></h1>
 
 <div class="stat-grid">
+       <section class="card">
+       <h2>Messages</h2>
+       <?php $unread = unread_messages_for_student($pdo, (int) $user['id']); ?>
+       <p><?= $unread > 0
+           ? $unread . ' unread message' . ($unread === 1 ? '' : 's') . ' from clinic staff.'
+           : 'No unread messages.' ?></p>
+       <a href="<?= e(url('student/messages.php')) ?>">Open messages</a>
+     </section>
+     <section class="card">
+       <h2>Clinic staff availability</h2>
+       <p>See which staff are available and how to reach them.</p>
+       <a href="<?= e(url('student/availability.php')) ?>">View availability</a>
+     </section>
   <section class="card">
     <h2>Next appointment</h2>
     <?php if ($next === false): ?>

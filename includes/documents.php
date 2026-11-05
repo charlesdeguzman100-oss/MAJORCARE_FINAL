@@ -10,7 +10,7 @@ require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/appointments.php'; // provides add_notification()
 
 const DOCUMENT_TYPES = [
-    'laboratory_result'  => 'Check-up result',
+    'laboratory_result'  => 'Laboratory result',
     'physical_exam_form' => 'Physical examination form',
     'medical_clearance'  => 'Medical clearance',
     'other'              => 'Other',

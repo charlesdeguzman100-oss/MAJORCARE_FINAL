@@ -3,11 +3,17 @@
 // Top of every page. Pages set $pageTitle before they include this file.
 
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/notifications.php';
 
 start_session();
 $navUser = current_user();
 $flash = get_flash();
 $pageTitle = $pageTitle ?? APP_NAME;
+
+// Unread count shown next to the Notifications link
+$unreadCount = $navUser !== null
+    ? unread_notification_count(getDatabase(), (int) $navUser['id'])
+    : 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -25,6 +31,7 @@ $pageTitle = $pageTitle ?? APP_NAME;
       <?php if ($navUser === null): ?>
         <a href="<?= e(url('public/index.php')) ?>">Log in</a>
         <a href="<?= e(url('public/register.php')) ?>">Register</a>
+
       <?php elseif ($navUser['role'] === 'student'): ?>
         <a href="<?= e(url('student/dashboard.php')) ?>">Dashboard</a>
         <a href="<?= e(url('student/profile.php')) ?>">Profile</a>
@@ -33,10 +40,15 @@ $pageTitle = $pageTitle ?? APP_NAME;
         <a href="<?= e(url('student/book.php')) ?>">Book</a>
         <a href="<?= e(url('student/visits.php')) ?>">Visits</a>
         <a href="<?= e(url('student/documents.php')) ?>">Documents</a>
+        <a href="<?= e(url('student/results.php')) ?>">Check-ups</a>
+        <a href="<?= e(url('student/messages.php')) ?>">Messages</a>
+        <a href="<?= e(url('student/availability.php')) ?>">Staff</a>
+        <a href="<?= e(url('public/notifications.php')) ?>">Notifications<?php if ($unreadCount > 0): ?> <span class="count"><?= $unreadCount ?></span><?php endif; ?></a>
         <form method="post" action="<?= e(url('public/logout.php')) ?>" class="inline-form">
           <?= csrf_field() ?>
           <button type="submit" class="link-button">Log out</button>
         </form>
+
       <?php else: ?>
         <a href="<?= e(url('staff/dashboard.php')) ?>">Dashboard</a>
         <a href="<?= e(url('staff/registrations.php')) ?>">Registrations</a>
@@ -44,6 +56,9 @@ $pageTitle = $pageTitle ?? APP_NAME;
         <a href="<?= e(url('staff/appointments.php')) ?>">Appointments</a>
         <a href="<?= e(url('staff/slots.php')) ?>">Slots</a>
         <a href="<?= e(url('staff/documents.php')) ?>">Documents</a>
+        <a href="<?= e(url('staff/messages.php')) ?>">Messages</a>
+        <a href="<?= e(url('staff/availability.php')) ?>">Availability</a>
+        <a href="<?= e(url('public/notifications.php')) ?>">Notifications<?php if ($unreadCount > 0): ?> <span class="count"><?= $unreadCount ?></span><?php endif; ?></a>
         <form method="post" action="<?= e(url('public/logout.php')) ?>" class="inline-form">
           <?= csrf_field() ?>
           <button type="submit" class="link-button">Log out</button>

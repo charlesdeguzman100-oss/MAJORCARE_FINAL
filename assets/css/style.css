@@ -263,3 +263,40 @@ input[type="file"] {
   margin-top: 6px;
   font: inherit;
 }
+
+/* Results */
+.badge-published { background: #e6f4ea; }
+.badge-draft { background: #fff4d6; }
+
+/* Messages and availability */
+.notice { border-left: 4px solid var(--primary); }
+.thread { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.msg {
+  max-width: 80%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+}
+.msg-mine { align-self: flex-end; background: #e6f2f2; }
+.msg-theirs { align-self: flex-start; }
+.msg-meta { font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+.msg-body { white-space: normal; }
+.badge-available { background: #e6f4ea; }
+.badge-busy { background: #fff4d6; }
+.badge-unavailable { background: #e8eef1; }
+
+/* Notifications */
+.count {
+  display: inline-block;
+  min-width: 20px;
+  padding: 0 6px;
+  margin-left: 2px;
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: bold;
+  text-align: center;
+}
+.notification-new { border-left: 4px solid var(--primary); }

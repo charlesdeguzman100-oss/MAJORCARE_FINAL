@@ -4,6 +4,7 @@
 
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/appointments.php';
+require_once __DIR__ . '/../includes/messages.php';
 
 $user = require_role('staff');
 $pdo = getDatabase();

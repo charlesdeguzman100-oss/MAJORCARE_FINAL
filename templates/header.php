@@ -43,6 +43,7 @@ $unreadCount = $navUser !== null
         <a href="<?= e(url('student/results.php')) ?>">Check-ups</a>
         <a href="<?= e(url('student/messages.php')) ?>">Messages</a>
         <a href="<?= e(url('student/availability.php')) ?>">Staff</a>
+        <a href="<?= e(url('student/clinic.php')) ?>">Clinic</a>
         <a href="<?= e(url('public/notifications.php')) ?>">Notifications<?php if ($unreadCount > 0): ?> <span class="count"><?= $unreadCount ?></span><?php endif; ?></a>
         <form method="post" action="<?= e(url('public/logout.php')) ?>" class="inline-form">
           <?= csrf_field() ?>
@@ -58,6 +59,7 @@ $unreadCount = $navUser !== null
         <a href="<?= e(url('staff/documents.php')) ?>">Documents</a>
         <a href="<?= e(url('staff/messages.php')) ?>">Messages</a>
         <a href="<?= e(url('staff/availability.php')) ?>">Availability</a>
+        <a href="<?= e(url('staff/clinic_info.php')) ?>">Clinic</a>
         <a href="<?= e(url('public/notifications.php')) ?>">Notifications<?php if ($unreadCount > 0): ?> <span class="count"><?= $unreadCount ?></span><?php endif; ?></a>
         <form method="post" action="<?= e(url('public/logout.php')) ?>" class="inline-form">
           <?= csrf_field() ?>

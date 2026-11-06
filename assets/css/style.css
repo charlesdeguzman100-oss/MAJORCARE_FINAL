@@ -300,3 +300,14 @@ input[type="file"] {
   text-align: center;
 }
 .notification-new { border-left: 4px solid var(--primary); }
+
+/* Clinic information and FAQs */
+.faq {
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
+}
+.faq summary {
+  cursor: pointer;
+  font-weight: bold;
+}
+.faq p { margin: 8px 0 0; }

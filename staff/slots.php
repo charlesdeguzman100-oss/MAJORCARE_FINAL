@@ -204,6 +204,7 @@ require_once __DIR__ . '/../templates/header.php';
   <?php if (empty($slots)): ?>
     <p>No upcoming slots. Add one above.</p>
   <?php else: ?>
+    <div class="table-wrap">
     <table>
       <thead>
         <tr><th>Date</th><th>Time</th><th>Status</th><th>Seats</th><th>Action</th></tr>
@@ -254,6 +255,7 @@ require_once __DIR__ . '/../templates/header.php';
         <?php endforeach; ?>
       </tbody>
     </table>
+    </div>
   <?php endif; ?>
 </section>
 <?php require_once __DIR__ . '/../templates/footer.php'; ?>

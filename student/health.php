@@ -47,6 +47,7 @@ require_once __DIR__ . '/../templates/header.php';
   <?php if (empty($vaccines)): ?>
     <p>No vaccination records yet.</p>
   <?php else: ?>
+    <div class="table-wrap">
     <table>
       <thead>
         <tr><th>Vaccine</th><th>Dose</th><th>Date given</th></tr>
@@ -61,6 +62,7 @@ require_once __DIR__ . '/../templates/header.php';
         <?php endforeach; ?>
       </tbody>
     </table>
+    </div>
   <?php endif; ?>
 </section>
 

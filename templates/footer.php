@@ -2,11 +2,16 @@
 // File: templates/footer.php
 // Closes the page that header.php opened.
 ?>
-</main>
-<footer class="site-footer">
-  <div class="container">
-    MajorCare is a student project. It does not replace professional medical services.
+<?php if (!empty($isGuest)): ?>
+      <p class="auth-disclaimer">MajorCare is a student project. It does not replace professional medical services.</p>
+  </main>
+<?php else: ?>
+      </main>
+      <footer class="app-footer">MajorCare is a student project. It does not replace professional medical services.</footer>
+    </div>
   </div>
-</footer>
+<?php endif; ?>
+<script src="<?= e(url('assets/js/app.js')) ?>" defer></script>
+<script src="<?= e(url('assets/js/password.js')) ?>" defer></script>
 </body>
 </html>

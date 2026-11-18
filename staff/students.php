@@ -67,6 +67,7 @@ require_once __DIR__ . '/../templates/header.php';
   <?php if (empty($students)): ?>
     <p>No approved students yet.</p>
   <?php else: ?>
+    <div class="table-wrap">
     <table>
       <thead>
         <tr>
@@ -85,21 +86,24 @@ require_once __DIR__ . '/../templates/header.php';
             <td><?= $row['consent_accepted_at'] !== null ? 'Accepted' : 'Not yet accepted' ?></td>
             <td><?= (int) $row['must_change_password'] === 1 ? 'Temporary, must change' : 'Set by student' ?></td>
             <td>
-              <a href="<?= e(url('staff/student_profile.php?id=' . $row['id'])) ?>">View profile</a><br><br>
-              <a href="<?= e(url('staff/student_health.php?id=' . $row['id'])) ?>">Health records</a><br><br>
-              <a href="<?= e(url('staff/student_visits.php?id=' . $row['id'])) ?>">Visits</a><br><br>
-              <a href="<?= e(url('staff/student_assessments.php?id=' . $row['id'])) ?>">Check-ups</a><br><br>
-              <form method="post" action=""
-                    onsubmit="return confirm('Reset this student\'s password to a temporary one?');">
-                <?= csrf_field() ?>
-                <input type="hidden" name="user_id" value="<?= e((string) $row['id']) ?>">
-                <button type="submit" class="btn btn-danger">Reset password</button>
-              </form>
+              <div class="table-actions">
+                <a href="<?= e(url('staff/student_profile.php?id=' . $row['id'])) ?>">View profile</a>
+                <a href="<?= e(url('staff/student_health.php?id=' . $row['id'])) ?>">Health records</a>
+                <a href="<?= e(url('staff/student_visits.php?id=' . $row['id'])) ?>">Visits</a>
+                <a href="<?= e(url('staff/student_assessments.php?id=' . $row['id'])) ?>">Check-ups</a>
+                <form method="post" action=""
+                      onsubmit="return confirm('Reset this student\'s password to a temporary one?');">
+                  <?= csrf_field() ?>
+                  <input type="hidden" name="user_id" value="<?= e((string) $row['id']) ?>">
+                  <button type="submit" class="btn btn-danger btn-sm">Reset password</button>
+                </form>
+              </div>
             </td>
           </tr>
         <?php endforeach; ?>
       </tbody>
     </table>
+    </div>
   <?php endif; ?>
 </section>
 <?php require_once __DIR__ . '/../templates/footer.php'; ?>

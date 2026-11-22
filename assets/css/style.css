@@ -793,3 +793,10 @@ body.auth-page::after {
   .auth-page .card { padding: 24px 20px; }
   .app-footer { padding: 16px 14px 24px; }
 }
+
+/* Student dashboard: text values in summary cards */
+.stat-number.stat-text {
+  font-size: 1.5rem;
+  line-height: 1.25;
+  padding-top: 6px;
+}

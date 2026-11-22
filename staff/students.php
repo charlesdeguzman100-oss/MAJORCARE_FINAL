@@ -1,6 +1,6 @@
 <?php
 // File: staff/students.php
-// Approved students. Staff can reset a student's password to a temporary one.
+// Approved students. Staff can search by school ID and reset a student's password.
 
 require_once __DIR__ . '/../includes/auth.php';
 
@@ -50,13 +50,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect('staff/students.php');
 }
 
-$students = $pdo->query(
-    "SELECT u.id, u.school_id, u.must_change_password, sp.full_name, sp.consent_accepted_at
-     FROM users u
-     JOIN student_profiles sp ON sp.user_id = u.id
-     WHERE u.role = 'student' AND u.account_status = 'approved'
-     ORDER BY sp.full_name ASC"
-)->fetchAll();
+// Search by school ID. Typed text is matched literally, so % and _ are escaped.
+$search = trim($_GET['q'] ?? '');
+
+$sql = "SELECT u.id, u.school_id, u.must_change_password, sp.full_name, sp.consent_accepted_at
+        FROM users u
+        JOIN student_profiles sp ON sp.user_id = u.id
+        WHERE u.role = 'student' AND u.account_status = 'approved'";
+$params = [];
+
+if ($search !== '') {
+    $sql .= ' AND u.school_id LIKE :search';
+    $params[':search'] = '%' . addcslashes($search, '%_\\') . '%';
+}
+$sql .= ' ORDER BY sp.full_name ASC';
+
+$stmt = $pdo->prepare($sql);
+$stmt->execute($params);
+$students = $stmt->fetchAll();
 
 $pageTitle = 'Students';
 require_once __DIR__ . '/../templates/header.php';
@@ -64,9 +75,28 @@ require_once __DIR__ . '/../templates/header.php';
 <h1>Approved students</h1>
 
 <section class="card">
+  <form method="get" action="<?= e(url('staff/students.php')) ?>" class="search-form">
+    <label>Search by school ID
+      <input type="text" name="q" value="<?= e($search) ?>" placeholder="for example, 00-0000-000" autocomplete="off">
+    </label>
+    <div class="button-row">
+      <button type="submit" class="btn">Search</button>
+      <?php if ($search !== ''): ?>
+        <a class="btn" href="<?= e(url('staff/students.php')) ?>">Clear</a>
+      <?php endif; ?>
+    </div>
+  </form>
+</section>
+
+<section class="card">
   <?php if (empty($students)): ?>
-    <p>No approved students yet.</p>
+    <p>
+      <?= $search !== ''
+          ? 'No approved student has a school ID containing "' . e($search) . '".'
+          : 'No approved students yet.' ?>
+    </p>
   <?php else: ?>
+    <p class="muted"><?= count($students) ?> student<?= count($students) === 1 ? '' : 's' ?> found.</p>
     <div class="table-wrap">
     <table>
       <thead>
@@ -90,6 +120,7 @@ require_once __DIR__ . '/../templates/header.php';
                 <a href="<?= e(url('staff/student_profile.php?id=' . $row['id'])) ?>">View profile</a>
                 <a href="<?= e(url('staff/student_health.php?id=' . $row['id'])) ?>">Health records</a>
                 <a href="<?= e(url('staff/student_visits.php?id=' . $row['id'])) ?>">Visits</a>
+                <a href="<?= e(url('staff/message_thread.php?student=' . $row['id'])) ?>">Message</a>
                 <a href="<?= e(url('staff/student_assessments.php?id=' . $row['id'])) ?>">Check-ups</a>
                 <form method="post" action=""
                       onsubmit="return confirm('Reset this student\'s password to a temporary one?');">

@@ -43,6 +43,16 @@
 
 ## Changelog entries
 
+### 2026-11-22 — Troubleshooting note: database connection refused
+- Symptom: `Fatal error: Uncaught RuntimeException: Database connection failed: SQLSTATE[HY000]
+  [2002] No connection could be made because the target machine actively refused it` on
+  `public/register.php` (and any page that calls `getDatabase()`).
+- Cause: XAMPP's MySQL service was not running; nothing was listening on port 3306. **Not a code
+  bug** — no files changed.
+- Fix: start MySQL in the XAMPP control panel (or `C:\xampp\mysql_start.bat`). Verified a single
+  `mysqld` process listening on port 3306 afterwards.
+- If it recurs, check the service/port before editing `config/database.php`.
+
 ### 2026-11-18 — Favicon added
 - Added `assets/img/favicon.png` using the new owl image supplied by the user (saved as
   `majorcare_favicon.png`, renamed to `favicon.png`).

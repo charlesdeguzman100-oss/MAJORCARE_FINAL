@@ -49,7 +49,12 @@ if ($filter !== 'all') {
     $sql .= ' WHERE a.status = :status';
     $params[':status'] = $filter;
 }
-$sql .= ' ORDER BY s.slot_date ASC, s.start_time ASC';
+// Completed, rejected, and cancelled lists show the latest first.
+// Pending and approved lists show the soonest first.
+$newestFirst = in_array($filter, ['completed', 'rejected', 'cancelled'], true);
+$sql .= $newestFirst
+    ? ' ORDER BY s.slot_date DESC, s.start_time DESC'
+    : ' ORDER BY s.slot_date ASC, s.start_time ASC';
 
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);

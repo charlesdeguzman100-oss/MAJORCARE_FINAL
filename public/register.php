@@ -1,8 +1,10 @@
 <?php
 // File: public/register.php
-// Student registration. New accounts start as Pending until clinic staff approve them.
+// Student registration. Each registration is a submission with an ID photo.
+// The student account is created only when clinic staff approve a submission.
 
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/submissions.php';
 
 start_session();
 
@@ -27,8 +29,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
     $confirm  = $_POST['confirm_password'] ?? '';
 
-    if (!preg_match('/^[A-Za-z0-9-]{4,30}$/', $values['school_id'])) {
-        $errors[] = 'School ID must be 4 to 30 letters, numbers, or dashes.';
+    if (!valid_school_id($values['school_id'])) {
+        $errors[] = 'School ID must use the format 00-0000-000.';
     }
     if ($values['full_name'] === '' || mb_strlen($values['full_name']) > 120) {
         $errors[] = 'Enter your full name (120 characters or fewer).';
@@ -42,60 +44,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($password !== $confirm) {
         $errors[] = 'The passwords do not match.';
     }
-
-    if (empty($errors)) {
-        $check = $pdo->prepare('SELECT id FROM users WHERE school_id = :school_id');
-        $check->execute([':school_id' => $values['school_id']]);
-        if ($check->fetch()) {
-            $errors[] = 'An account with this school ID already exists.';
-        }
+    if (!isset($_POST['consent'])) {
+        $errors[] = 'Tick the box to confirm you have read the privacy notice.';
     }
 
+    $photo = $_FILES['id_photo'] ?? ['error' => UPLOAD_ERR_NO_FILE];
+    [$photoErrors, $mime] = check_uploaded_file($photo);
+    $errors = array_merge($errors, $photoErrors);
+
     if (empty($errors)) {
-        try {
-            // The transaction saves the account, the profile, and the staff alerts together, or none of them.
-            $pdo->beginTransaction();
+        $result = submit_registration($pdo, [
+            'school_id' => $values['school_id'],
+            'full_name' => $values['full_name'],
+            'email'     => $values['email'],
+            'password'  => $password,
+        ], $photo, $mime);
 
-            $insertUser = $pdo->prepare(
-                "INSERT INTO users (school_id, password_hash, role, account_status)
-                 VALUES (:school_id, :hash, 'student', 'pending')"
-            );
-            $insertUser->execute([
-                ':school_id' => $values['school_id'],
-                ':hash'      => password_hash($password, PASSWORD_DEFAULT),
-            ]);
-            $userId = (int) $pdo->lastInsertId();
-
-            $insertProfile = $pdo->prepare(
-                'INSERT INTO student_profiles (user_id, full_name, email)
-                 VALUES (:user_id, :full_name, :email)'
-            );
-            $insertProfile->execute([
-                ':user_id'   => $userId,
-                ':full_name' => $values['full_name'],
-                ':email'     => $values['email'] !== '' ? $values['email'] : null,
-            ]);
-
-            // One notification for each approved staff member
-            $notify = $pdo->prepare(
-                "INSERT INTO notifications (user_id, notification_type, title, message, link)
-                 SELECT id, 'registration', 'New student registration', :message, 'staff/registrations.php'
-                 FROM users
-                 WHERE role = 'staff' AND account_status = 'approved'"
-            );
-            $notify->execute([
-                ':message' => $values['full_name'] . ' (' . $values['school_id'] . ') submitted a registration.',
-            ]);
-
-            $pdo->commit();
-
-            set_flash('success', 'Registration submitted. You can log in after clinic staff approve your account.');
+        if ($result['ok']) {
+            set_flash('success', $result['message']);
             redirect('public/index.php');
-        } catch (PDOException $e) {
-            $pdo->rollBack();
-            error_log('Registration failed: ' . $e->getMessage());
-            $errors[] = 'The registration could not be saved. Please try again.';
         }
+        $errors[] = $result['message'];
     }
 }
 
@@ -104,16 +73,23 @@ require_once __DIR__ . '/../templates/header.php';
 ?>
 <section class="card narrow">
   <h1>Student registration</h1>
-  <p>Clinic staff review each registration before you can log in.</p>
+
+  <div class="card notice">
+    <h2>Privacy notice</h2>
+    <p>MajorCare collects your name, email address, school ID, password, and a photo of your school ID. The photo lets clinic staff confirm that the account belongs to you. Only approved clinic staff can view it.</p>
+    <p>Your password is stored only as a secure hash. The ID photo is kept for as long as your account exists. Your information is used only for campus clinic purposes and is protected by login and role-based access.</p>
+    <p>MajorCare does not diagnose conditions or replace professional medical care.</p>
+  </div>
 
   <?php foreach ($errors as $error): ?>
     <div class="alert alert-error"><?= e($error) ?></div>
   <?php endforeach; ?>
 
-  <form method="post" action="">
+  <form method="post" action="" enctype="multipart/form-data">
     <?= csrf_field() ?>
     <label>School ID
-      <input type="text" name="school_id" value="<?= e($values['school_id']) ?>" required>
+      <input type="text" name="school_id" value="<?= e($values['school_id']) ?>"
+             placeholder="00-0000-000" required>
     </label>
     <label>Full name
       <input type="text" name="full_name" value="<?= e($values['full_name']) ?>" required>
@@ -126,6 +102,13 @@ require_once __DIR__ . '/../templates/header.php';
     </label>
     <label>Confirm password
       <input type="password" name="confirm_password" required>
+    </label>
+    <label>Photo of your school ID (JPG, PNG, or PDF, up to 5 MB)
+      <input type="file" name="id_photo" accept=".jpg,.jpeg,.png,.pdf" required>
+    </label>
+    <label class="checkbox-label">
+      <input type="checkbox" name="consent" value="1">
+      I have read the privacy notice and I agree to how MajorCare uses my information.
     </label>
     <button type="submit" class="btn">Submit registration</button>
   </form>

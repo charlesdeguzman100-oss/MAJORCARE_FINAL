@@ -58,9 +58,13 @@ function require_login(): array
     }
 
     if ($user['account_status'] !== 'approved') {
-        $message = $user['account_status'] === 'rejected'
-            ? 'Your registration was rejected. Reason: ' . ($user['rejection_reason'] ?? 'No reason given.')
-            : 'Your account is still waiting for clinic staff approval.';
+            if ($user['account_status'] === 'removed') {
+        $message = 'This account has been deactivated. Contact clinic staff for help.';
+        } elseif ($user['account_status'] === 'rejected') {
+        $message = 'Your registration was rejected. Reason: ' . ($user['rejection_reason'] ?? 'No reason given.');
+        } else {
+        $message = 'Your account is still waiting for clinic staff approval.';
+        }
         logout_user();
         set_flash('error', $message);
         redirect('public/index.php');

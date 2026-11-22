@@ -19,11 +19,15 @@ CREATE TABLE users (
   role                 ENUM('student', 'staff') NOT NULL,
   account_status       ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
   rejection_reason     VARCHAR(500) NULL,
+  approved_by          INT UNSIGNED NULL,
+  approved_at          DATETIME NULL,
   must_change_password TINYINT(1) NOT NULL DEFAULT 0,
   last_login_at        DATETIME NULL,
   created_at           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  INDEX idx_users_role_status (role, account_status)
+  INDEX idx_users_role_status (role, account_status),
+  CONSTRAINT fk_users_approved_by
+  FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- 2. Student profile, privacy consent, and emergency contact
@@ -300,4 +304,19 @@ CREATE TABLE physical_assessments (
     FOREIGN KEY (student_user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_assessment_recorder
     FOREIGN KEY (recorded_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE account_audit_log (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  student_user_id INT UNSIGNED NOT NULL,
+  staff_user_id   INT UNSIGNED NULL,
+  action          ENUM('approve', 'reject', 'undo', 'revoke', 'id_change') NOT NULL,
+  detail          VARCHAR(500) NULL,
+  reason          VARCHAR(500) NULL,
+  created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_audit_student (student_user_id, created_at),
+  CONSTRAINT fk_audit_student
+    FOREIGN KEY (student_user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_audit_staff
+    FOREIGN KEY (staff_user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;

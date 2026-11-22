@@ -1,189 +1,213 @@
 <?php
 // File: staff/registrations.php
-// Staff review pending registrations, see rejected ones, and undo a rejection.
-// Undo returns the account to Pending. Approval still needs a separate decision.
+// Registrations in four sections: Pending, Rejected, Approved, and Removed.
+// The tabs at the top show one section at a time. All shows every section.
 
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/submissions.php';
 
-require_role('staff');
+$staff = require_role('staff');
 $pdo = getDatabase();
+
+// The tab the staff member chose: all, or one section
+$sectionTitles = [
+    'pending'  => 'Pending',
+    'rejected' => 'Rejected',
+    'approved' => 'Approved',
+    'removed'  => 'Removed',
+];
+$filter = $_GET['status'] ?? 'all';
+if ($filter !== 'all' && !isset($sectionTitles[$filter])) {
+    $filter = 'all';
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_is_valid()) {
         set_flash('error', 'Your session expired. Please try again.');
-        redirect('staff/registrations.php');
+        redirect('staff/registrations.php?status=' . urlencode($filter));
     }
 
-    $studentId = (int) ($_POST['user_id'] ?? 0);
-    $action    = $_POST['action'] ?? '';
-    $reason    = trim($_POST['reason'] ?? '');
-
-    if (!in_array($action, ['approve', 'reject', 'undo'], true)) {
-        set_flash('error', 'Unknown action.');
-        redirect('staff/registrations.php');
-    }
-
-    $find = $pdo->prepare(
-        "SELECT u.id, u.account_status, sp.full_name
-         FROM users u
-         JOIN student_profiles sp ON sp.user_id = u.id
-         WHERE u.id = :id AND u.role = 'student'"
-    );
-    $find->execute([':id' => $studentId]);
-    $student = $find->fetch();
-
-    if ($student === false) {
-        set_flash('error', 'That registration was not found.');
-        redirect('staff/registrations.php');
-    }
-
-    // Approve and reject need a pending account. Undo needs a rejected account.
-    $requiredStatus = $action === 'undo' ? 'rejected' : 'pending';
-    if ($student['account_status'] !== $requiredStatus) {
-        set_flash('error', $requiredStatus === 'pending'
-            ? 'That registration is no longer pending.'
-            : 'That registration is not rejected, so it cannot be undone.');
-        redirect('staff/registrations.php');
-    }
-
-    if ($action === 'reject' && ($reason === '' || mb_strlen($reason) > 400)) {
-        set_flash('error', 'Enter a rejection reason of 400 characters or fewer.');
-        redirect('staff/registrations.php');
-    }
+    $action       = $_POST['action'] ?? '';
+    $submissionId = (int) ($_POST['submission_id'] ?? 0);
 
     if ($action === 'approve') {
-        $newStatus = 'approved';
-        $newReason = null;
-        $title     = 'Registration approved';
-        $message   = 'Your registration was approved. You can now log in.';
-        $success   = $student['full_name'] . ' was approved.';
+        $result = approve_submission($pdo, (int) $staff['id'], $submissionId, isset($_POST['verified']));
     } elseif ($action === 'reject') {
-        $newStatus = 'rejected';
-        $newReason = $reason;
-        $title     = 'Registration rejected';
-        $message   = 'Your registration was rejected. Reason: ' . $reason;
-        $success   = $student['full_name'] . ' was rejected.';
+        $result = reject_submission($pdo, (int) $staff['id'], $submissionId, trim($_POST['reason'] ?? ''));
+    } elseif ($action === 'undo') {
+        $result = undo_submission_rejection($pdo, (int) $staff['id'], $submissionId);
     } else {
-        // Undo: back to pending, reason cleared, student told it is under review again
-        $newStatus = 'pending';
-        $newReason = null;
-        $title     = 'Registration under review';
-        $message   = 'Your registration is under review again. Clinic staff will decide shortly.';
-        $success   = $student['full_name'] . ' was returned to pending.';
+        $result = ['ok' => false, 'message' => 'Unknown action.'];
     }
 
-    try {
-        $pdo->beginTransaction();
-
-        $update = $pdo->prepare(
-            'UPDATE users SET account_status = :status, rejection_reason = :reason WHERE id = :id'
-        );
-        $update->execute([
-            ':status' => $newStatus,
-            ':reason' => $newReason,
-            ':id'     => $studentId,
-        ]);
-
-        $notify = $pdo->prepare(
-            "INSERT INTO notifications (user_id, notification_type, title, message, link)
-             VALUES (:user_id, 'registration', :title, :message, 'public/index.php')"
-        );
-        $notify->execute([
-            ':user_id' => $studentId,
-            ':title'   => $title,
-            ':message' => $message,
-        ]);
-
-        $pdo->commit();
-        set_flash('success', $success);
-    } catch (PDOException $e) {
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
-        }
-        error_log('Registration decision failed: ' . $e->getMessage());
-        set_flash('error', 'The decision could not be saved. Please try again.');
-    }
-
-    redirect('staff/registrations.php');
+    set_flash($result['ok'] ? 'success' : 'error', $result['message']);
+    // Stay on the tab the staff member was using
+    redirect('staff/registrations.php?status=' . urlencode($filter));
 }
 
-// Pending registrations, oldest first
-$pending = $pdo->query(
-    "SELECT u.id, u.school_id, u.created_at, sp.full_name, sp.email
-     FROM users u
-     JOIN student_profiles sp ON sp.user_id = u.id
-     WHERE u.role = 'student' AND u.account_status = 'pending'
-     ORDER BY u.created_at ASC"
+$submissions = $pdo->query(
+    'SELECT id, school_id, full_name, email, status, rejection_reason,
+            photo_original_name, created_at, user_id
+     FROM registration_submissions
+     ORDER BY school_id ASC, created_at DESC, id DESC'
 )->fetchAll();
 
-// Rejected registrations, most recent first. updated_at is the time the account was rejected.
-$rejected = $pdo->query(
-    "SELECT u.id, u.school_id, u.rejection_reason, u.updated_at, sp.full_name
-     FROM users u
-     JOIN student_profiles sp ON sp.user_id = u.id
-     WHERE u.role = 'student' AND u.account_status = 'rejected'
-     ORDER BY u.updated_at DESC"
-)->fetchAll();
+// Student accounts keyed by school ID
+$accounts = $pdo->query(
+    "SELECT school_id, id, account_status FROM users WHERE role = 'student'"
+)->fetchAll(PDO::FETCH_UNIQUE);
+
+// Group submissions by school ID, newest first within each group
+$groups = [];
+foreach ($submissions as $row) {
+    $groups[$row['school_id']][] = $row;
+}
+
+// The status shown on a card. An account's own status wins.
+// Without an account, the newest submission decides (pending or rejected).
+function card_status(array $items, ?array $account): string
+{
+    if ($account !== null) {
+        return $account['account_status'];
+    }
+    return $items[0]['status'];
+}
+
+// Badge text and style for each status
+$statusMeta = [
+    'pending'    => ['Pending', 'pending'],
+    'rejected'   => ['Rejected', 'rejected'],
+    'approved'   => ['Approved', 'approved'],
+    'removed'    => ['Removed', 'removed'],
+    'superseded' => ['Superseded', 'draft'],
+];
+
+// Sort each school ID into one of the four sections
+$sections = ['pending' => [], 'rejected' => [], 'approved' => [], 'removed' => []];
+foreach ($groups as $schoolId => $items) {
+    $account = $accounts[$schoolId] ?? null;
+    $status  = card_status($items, $account);
+    if (isset($sections[$status])) {
+        $sections[$status][] = [
+            'id'      => $schoolId,
+            'items'   => $items,
+            'account' => $account,
+            'status'  => $status,
+        ];
+    }
+}
+
+// Prints one compact card: the school ID and status, with the details under Additional info
+function render_registration_card(array $card, array $statusMeta): void
+{
+    $schoolId = $card['id'];
+    $items    = $card['items'];
+    $account  = $card['account'];
+    [$label, $cls] = $statusMeta[$card['status']];
+    ?>
+    <section class="card">
+      <details class="info-toggle">
+        <summary>
+          <span class="info-id"><?= e($schoolId) ?></span>
+          <span class="badge badge-<?= e($cls) ?>"><?= e($label) ?></span>
+          <span class="info-hint">Additional info</span>
+        </summary>
+
+        <div class="info-body">
+          <p>
+            <strong><?= e($items[0]['full_name']) ?></strong>
+            &middot; <?= count($items) ?> submission<?= count($items) === 1 ? '' : 's' ?>
+          </p>
+
+          <?php if ($account !== null): ?>
+            <p><a href="<?= e(url('staff/student_profile.php?id=' . $account['id'])) ?>">Open account profile</a></p>
+          <?php endif; ?>
+
+          <?php foreach ($items as $s): ?>
+            <?php [$subLabel, $subCls] = $statusMeta[$s['status']] ?? [ucfirst($s['status']), 'draft']; ?>
+            <div class="submission">
+              <div class="row-head">
+                <strong>Submitted <?= e(date('M j, Y g:i A', strtotime($s['created_at']))) ?></strong>
+                <span class="badge badge-<?= e($subCls) ?>"><?= e($subLabel) ?></span>
+              </div>
+              <p>
+                <strong>Name:</strong> <?= e($s['full_name']) ?><br>
+                <strong>Email:</strong> <?= e($s['email'] ?? 'Not provided') ?><br>
+                <strong>ID photo:</strong>
+                <a href="<?= e(url('public/submission_photo.php?id=' . $s['id'])) ?>" target="_blank">Open ID photo</a>
+                (<?= e($s['photo_original_name']) ?>)
+              </p>
+
+              <?php if ($s['status'] === 'rejected'): ?>
+                <p><strong>Reason:</strong> <?= e($s['rejection_reason'] ?? 'No reason recorded') ?></p>
+              <?php endif; ?>
+
+              <?php if ($s['status'] === 'pending'): ?>
+                <form method="post" action="<?= e(url('staff/registrations.php?status=' . $_GET['status'] ?? 'all')) ?>">
+                  <?= csrf_field() ?>
+                  <input type="hidden" name="submission_id" value="<?= e((string) $s['id']) ?>">
+                  <label class="checkbox-label">
+                    <input type="checkbox" name="verified" value="1">
+                    I checked this ID against the enrollment list (required to approve)
+                  </label>
+                  <div class="button-row">
+                    <button type="submit" name="action" value="approve" class="btn">Approve</button>
+                  </div>
+                </form>
+                <form method="post" action="">
+                  <?= csrf_field() ?>
+                  <input type="hidden" name="submission_id" value="<?= e((string) $s['id']) ?>">
+                  <label>Reason for rejecting
+                    <textarea name="reason" rows="2" maxlength="400"></textarea>
+                  </label>
+                  <button type="submit" name="action" value="reject" class="btn btn-danger">Reject</button>
+                </form>
+              <?php endif; ?>
+
+              <?php if ($s['status'] === 'rejected'): ?>
+                <form method="post" action=""
+                      onsubmit="return confirm('Return this submission to pending?');">
+                  <?= csrf_field() ?>
+                  <input type="hidden" name="submission_id" value="<?= e((string) $s['id']) ?>">
+                  <input type="hidden" name="action" value="undo">
+                  <button type="submit" class="btn">Undo rejection</button>
+                </form>
+              <?php endif; ?>
+            </div>
+          <?php endforeach; ?>
+        </div>
+      </details>
+    </section>
+    <?php
+}
 
 $pageTitle = 'Registrations';
 require_once __DIR__ . '/../templates/header.php';
 ?>
 <h1>Registrations</h1>
 
-<h2>Pending</h2>
-<?php if (empty($pending)): ?>
-  <section class="card">
-    <p>No registrations are waiting for review.</p>
-  </section>
-<?php else: ?>
-  <?php foreach ($pending as $row): ?>
-    <section class="card">
-      <h2><?= e($row['full_name']) ?></h2>
-      <p>
-        <strong>School ID:</strong> <?= e($row['school_id']) ?><br>
-        <strong>Email:</strong> <?= e($row['email'] ?? 'Not provided') ?><br>
-        <strong>Submitted:</strong> <?= e(date('M j, Y g:i A', strtotime($row['created_at']))) ?>
-      </p>
-
-      <form method="post" action="">
-        <?= csrf_field() ?>
-        <input type="hidden" name="user_id" value="<?= e((string) $row['id']) ?>">
-        <label>Rejection reason (required only to reject)
-          <textarea name="reason" rows="2" maxlength="400"></textarea>
-        </label>
-        <div class="button-row">
-          <button type="submit" name="action" value="approve" class="btn">Approve</button>
-          <button type="submit" name="action" value="reject" class="btn btn-danger">Reject</button>
-        </div>
-      </form>
-    </section>
+<p>
+  <a class="filter<?= $filter === 'all' ? ' filter-active' : '' ?>"
+     href="<?= e(url('staff/registrations.php?status=all')) ?>">All</a>
+  <?php foreach ($sectionTitles as $key => $title): ?>
+    <a class="filter<?= $filter === $key ? ' filter-active' : '' ?>"
+       href="<?= e(url('staff/registrations.php?status=' . $key)) ?>"><?= e($title) ?> (<?= count($sections[$key]) ?>)</a>
   <?php endforeach; ?>
+</p>
+
+<?php if (empty($groups)): ?>
+  <section class="card"><p>No registrations have been submitted.</p></section>
 <?php endif; ?>
 
-<h2>Rejected</h2>
-<p class="muted">If a rejection was a mistake, use Undo. The registration returns to Pending, and the student is told it is under review again.</p>
-<?php if (empty($rejected)): ?>
-  <section class="card">
-    <p>No rejected registrations.</p>
-  </section>
-<?php else: ?>
-  <?php foreach ($rejected as $row): ?>
-    <section class="card">
-      <h2><?= e($row['full_name']) ?></h2>
-      <p>
-        <strong>School ID:</strong> <?= e($row['school_id']) ?><br>
-        <strong>Rejected on:</strong> <?= e(date('M j, Y g:i A', strtotime($row['updated_at']))) ?><br>
-        <strong>Reason:</strong> <?= e($row['rejection_reason'] ?? 'No reason recorded') ?>
-      </p>
-
-      <form method="post" action=""
-            onsubmit="return confirm('Return this registration to pending?');">
-        <?= csrf_field() ?>
-        <input type="hidden" name="user_id" value="<?= e((string) $row['id']) ?>">
-        <input type="hidden" name="action" value="undo">
-        <button type="submit" class="btn">Undo rejection</button>
-      </form>
-    </section>
-  <?php endforeach; ?>
-<?php endif; ?>
+<?php foreach ($sectionTitles as $key => $title): ?>
+  <?php if ($filter !== 'all' && $filter !== $key) { continue; } ?>
+  <h2><?= e($title) ?> <span class="muted">(<?= count($sections[$key]) ?>)</span></h2>
+  <?php if (empty($sections[$key])): ?>
+    <section class="card"><p class="muted">None.</p></section>
+  <?php else: ?>
+    <?php foreach ($sections[$key] as $card): ?>
+      <?php render_registration_card($card, $statusMeta); ?>
+    <?php endforeach; ?>
+  <?php endif; ?>
+<?php endforeach; ?>
 <?php require_once __DIR__ . '/../templates/footer.php'; ?>

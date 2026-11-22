@@ -16,7 +16,7 @@ $totalStudents = (int) $pdo->query(
 )->fetchColumn();
 
 $pendingRegistrations = (int) $pdo->query(
-    "SELECT COUNT(*) FROM users WHERE role = 'student' AND account_status = 'pending'"
+    "SELECT COUNT(*) FROM registration_submissions WHERE status = 'pending'"
 )->fetchColumn();
 
 $pendingRequests = (int) $pdo->query(

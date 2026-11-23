@@ -39,6 +39,7 @@ function store_id_photo(string $tmpPath, string $mime): string
 }
 
 // Explains why a school ID cannot register now, or returns null if it can.
+// A pending submission reserves the ID. A rejected (or superseded) one releases it.
 function registration_block_reason(PDO $pdo, string $schoolId): ?string
 {
     $account = $pdo->prepare("SELECT account_status FROM users WHERE school_id = :id AND role = 'student'");
@@ -52,17 +53,31 @@ function registration_block_reason(PDO $pdo, string $schoolId): ?string
         return 'This account has been removed. Please contact the campus clinic.';
     }
 
-    $last = $pdo->prepare(
-        'SELECT status, rejection_reason FROM registration_submissions
-         WHERE school_id = :id ORDER BY id DESC LIMIT 1'
+    // Only one pending submission may hold an ID at a time
+    $pending = $pdo->prepare(
+        "SELECT id FROM registration_submissions
+         WHERE school_id = :id AND status = 'pending'
+         ORDER BY id DESC LIMIT 1"
     );
-    $last->execute([':id' => $schoolId]);
-    $row = $last->fetch();
-
-    if ($row !== false && $row['status'] === 'rejected') {
-        return 'Your registration was rejected. Reason: ' . ($row['rejection_reason'] ?? 'No reason given.');
+    $pending->execute([':id' => $schoolId]);
+    if ($pending->fetch() !== false) {
+        return 'A registration with this school ID is already being reviewed. '
+             . 'If someone used your ID by mistake, contact the clinic to have it released.';
     }
+
     return null;
+}
+
+// Sends one notification to every approved staff member, linking to the registrations page
+function notify_staff_registrations(PDO $pdo, string $title, string $message): void
+{
+    $staffIds = $pdo->query(
+        "SELECT id FROM users WHERE role = 'staff' AND account_status = 'approved'"
+    )->fetchAll(PDO::FETCH_COLUMN);
+
+    foreach ($staffIds as $staffId) {
+        add_notification($pdo, (int) $staffId, 'registration', $title, $message, 'staff/registrations.php');
+    }
 }
 
 // Saves one registration submission. $data holds school_id, full_name, email, and password.
@@ -100,8 +115,14 @@ function submit_registration(PDO $pdo, array $data, array $file, string $mime): 
             ':size'     => (int) $file['size'],
         ]);
 
+        notify_staff_registrations(
+            $pdo,
+            'New registration submitted',
+            $data['full_name'] . ' submitted a registration for review.'
+        );
+
         $pdo->commit();
-        return ['ok' => true, 'message' => 'Registration submitted. Clinic staff will check your ID and decide.'];
+                return ['ok' => true, 'message' => 'Registration submitted. Clinic staff will check your ID and decide. Please allow up to 24 hours for the review.'];
     } catch (PDOException $e) {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
@@ -113,7 +134,7 @@ function submit_registration(PDO $pdo, array $data, array $file, string $mime): 
 }
 
 // Approves one pending submission. Creates the student account, which uses the
-// password from this submission. Other pending submissions for the ID become superseded.
+// password from this submission. Other pending submissions for the ID are rejected.
 function approve_submission(PDO $pdo, int $staffId, int $submissionId, bool $verified): array
 {
     if (!$verified) {
@@ -166,12 +187,29 @@ function approve_submission(PDO $pdo, int $staffId, int $submissionId, bool $ver
         );
         $decide->execute([':uid' => $userId, ':staff' => $staffId, ':id' => $submissionId]);
 
-        $supersede = $pdo->prepare(
+                $rejectOthers = $pdo->prepare(
             "UPDATE registration_submissions
-             SET status = 'superseded', decided_by = :staff, decided_at = NOW()
+             SET status = 'rejected',
+                 rejection_reason = :reason,
+                 decided_by = :staff,
+                 decided_at = NOW()
              WHERE school_id = :school AND status = 'pending' AND id <> :id"
         );
-        $supersede->execute([':staff' => $staffId, ':school' => $sub['school_id'], ':id' => $submissionId]);
+        $rejectOthers->execute([
+            ':reason' => 'Another registration with this school ID was approved.',
+            ':staff'  => $staffId,
+            ':school' => $sub['school_id'],
+            ':id'     => $submissionId,
+        ]);
+
+        add_notification(
+            $pdo,
+            $userId,
+            'registration',
+            'Registration approved',
+            'Your registration was approved. You can now log in with your school ID ' . $sub['school_id'] . '.',
+            'public/index.php'
+        );
 
         log_account_event($pdo, $userId, $staffId, 'approve', 'ID checked against the enrollment list', null);
 

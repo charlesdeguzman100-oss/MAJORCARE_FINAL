@@ -1,2 +1,2 @@
-   # Blocks direct browser access to this folder
-   Require all denied
+# Blocks direct browser access to this folder
+Require all denied

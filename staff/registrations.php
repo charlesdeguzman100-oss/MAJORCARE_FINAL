@@ -58,9 +58,10 @@ $accounts = $pdo->query(
 )->fetchAll(PDO::FETCH_UNIQUE);
 
 // Group submissions by school ID, newest first within each group
+// One card per submission, even when two students use the same school ID
 $groups = [];
 foreach ($submissions as $row) {
-    $groups[$row['school_id']][] = $row;
+    $groups[$row['id']][] = $row;
 }
 
 // The status shown on a card. An account's own status wins.
@@ -84,8 +85,9 @@ $statusMeta = [
 
 // Sort each school ID into one of the four sections
 $sections = ['pending' => [], 'rejected' => [], 'approved' => [], 'removed' => []];
-foreach ($groups as $schoolId => $items) {
-    $account = $accounts[$schoolId] ?? null;
+foreach ($groups as $items) {
+    $schoolId = $items[0]['school_id'];
+    $account  = $accounts[$schoolId] ?? null;
     $status  = card_status($items, $account);
     if (isset($sections[$status])) {
         $sections[$status][] = [
@@ -98,7 +100,7 @@ foreach ($groups as $schoolId => $items) {
 }
 
 // Prints one compact card: the school ID and status, with the details under Additional info
-function render_registration_card(array $card, array $statusMeta): void
+function render_registration_card(array $card, array $statusMeta, string $filter): void
 {
     $schoolId = $card['id'];
     $items    = $card['items'];
@@ -143,7 +145,7 @@ function render_registration_card(array $card, array $statusMeta): void
               <?php endif; ?>
 
               <?php if ($s['status'] === 'pending'): ?>
-                <form method="post" action="<?= e(url('staff/registrations.php?status=' . $_GET['status'] ?? 'all')) ?>">
+              <form method="post" action="<?= e(url('staff/registrations.php?status=' . urlencode($filter))) ?>">
                   <?= csrf_field() ?>
                   <input type="hidden" name="submission_id" value="<?= e((string) $s['id']) ?>">
                   <label class="checkbox-label">
@@ -206,7 +208,7 @@ require_once __DIR__ . '/../templates/header.php';
     <section class="card"><p class="muted">None.</p></section>
   <?php else: ?>
     <?php foreach ($sections[$key] as $card): ?>
-      <?php render_registration_card($card, $statusMeta); ?>
+    <?php render_registration_card($card, $statusMeta, $filter); ?>
     <?php endforeach; ?>
   <?php endif; ?>
 <?php endforeach; ?>
